@@ -79,10 +79,14 @@ export function LearningProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Deactivate other plans
-      await supabase
+      const { error: updateError } = await supabase
         .from('learning_plans')
         .update({ is_active: false })
         .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('Error deactivating plans:', updateError)
+      }
 
       const { data, error } = await supabase
         .from('learning_plans')
@@ -211,7 +215,7 @@ export function LearningProvider({ children }: { children: React.ReactNode }) {
         .eq('day_number', dayNumber)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle() // Use maybeSingle instead of single to avoid errors when no rows
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching quiz result:', error)

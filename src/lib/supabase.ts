@@ -3,11 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+let supabase
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+  console.error('Missing Supabase environment variables')
+  // Provide fallback values for development
+  const fallbackUrl = 'https://placeholder.supabase.co'
+  const fallbackKey = 'placeholder-key'
+  
+  supabase = createClient(fallbackUrl, fallbackKey)
+} else {
+  supabase = createClient(supabaseUrl, supabaseAnonKey)
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export { supabase }
 
 export type Database = {
   public: {

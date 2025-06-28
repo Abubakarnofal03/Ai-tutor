@@ -150,7 +150,7 @@ export default function Register() {
           <div className="text-center">
             <p className="text-sm sm:text-base text-dark-400">
               Already have an account?{' '}
-              <Link to="/register" className="text-primary-400 hover:text-primary-300 font-medium">
+              <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
                 Sign in here
               </Link>
             </p>

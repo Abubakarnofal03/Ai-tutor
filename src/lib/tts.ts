@@ -1,26 +1,30 @@
 // Text-to-Speech functionality using Web Speech API and ElevenLabs
 export class TTSService {
-  private synth: SpeechSynthesis
+  private synth: SpeechSynthesis | null = null
   private voices: SpeechSynthesisVoice[] = []
 
   constructor() {
-    this.synth = window.speechSynthesis
-    this.loadVoices()
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      this.synth = window.speechSynthesis
+      this.loadVoices()
+    }
   }
 
   private loadVoices() {
+    if (!this.synth) return
+    
     this.voices = this.synth.getVoices()
     
     if (this.voices.length === 0) {
       this.synth.onvoiceschanged = () => {
-        this.voices = this.synth.getVoices()
+        this.voices = this.synth!.getVoices()
       }
     }
   }
 
   async speak(text: string, options: { rate?: number; pitch?: number; volume?: number } = {}) {
     return new Promise<void>((resolve, reject) => {
-      if (!text.trim()) {
+      if (!this.synth || !text.trim()) {
         resolve()
         return
       }
@@ -44,18 +48,23 @@ export class TTSService {
       utterance.volume = options.volume || 1
 
       utterance.onend = () => resolve()
-      utterance.onerror = (error) => reject(error)
+      utterance.onerror = (error) => {
+        console.error('TTS Error:', error)
+        resolve() // Don't reject, just resolve to prevent blocking
+      }
 
       this.synth.speak(utterance)
     })
   }
 
   stop() {
-    this.synth.cancel()
+    if (this.synth) {
+      this.synth.cancel()
+    }
   }
 
   isSupported(): boolean {
-    return 'speechSynthesis' in window
+    return typeof window !== 'undefined' && 'speechSynthesis' in window && this.synth !== null
   }
 }
 

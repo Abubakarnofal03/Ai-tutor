@@ -1,9 +1,21 @@
 import Groq from 'groq-sdk'
 
-const groq = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true
-})
+// Initialize Groq with error handling
+let groq: Groq | null = null
+
+try {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  if (apiKey) {
+    groq = new Groq({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    })
+  } else {
+    console.warn('VITE_GROQ_API_KEY not found in environment variables')
+  }
+} catch (error) {
+  console.error('Failed to initialize Groq:', error)
+}
 
 export interface LearningPlan {
   topic: string
@@ -43,6 +55,10 @@ export async function generateLearningPlan(
   level: string,
   dailyTime: string
 ): Promise<LearningPlan> {
+  if (!groq) {
+    throw new Error('Groq API is not available. Please check your API key configuration.')
+  }
+
   const prompt = `Create a comprehensive ${days}-day learning plan for "${topic}" at ${level} level with ${dailyTime} daily study time.
 
 CRITICAL REQUIREMENTS FOR EXPLANATIONS:
@@ -112,9 +128,9 @@ Make sure:
           content: prompt
         }
       ],
-      model: 'llama3-70b-8192', // Using the larger model for better content generation
+      model: 'llama3-70b-8192',
       temperature: 0.7,
-      max_tokens: 8192, // Fixed: Changed from 16000 to 8192 to comply with API limit
+      max_tokens: 8192,
       response_format: { type: "json_object" }
     })
 
@@ -124,7 +140,7 @@ Make sure:
     return JSON.parse(content)
   } catch (error) {
     console.error('Error generating learning plan:', error)
-    throw new Error('Failed to generate learning plan')
+    throw new Error('Failed to generate learning plan. Please check your API configuration.')
   }
 }
 
@@ -133,6 +149,10 @@ export async function generateQuizQuestions(
   dayContent: DayPlan,
   level: string
 ): Promise<QuizQuestion[]> {
+  if (!groq) {
+    throw new Error('Groq API is not available. Please check your API key configuration.')
+  }
+
   const prompt = `Generate 5 quiz questions for Day ${dayContent.day} of learning "${topic}" at ${level} level.
 
 Day content:
@@ -191,7 +211,7 @@ Requirements:
     return parsed.questions || []
   } catch (error) {
     console.error('Error generating quiz questions:', error)
-    throw new Error('Failed to generate quiz questions')
+    throw new Error('Failed to generate quiz questions. Please check your API configuration.')
   }
 }
 
@@ -200,6 +220,14 @@ export async function gradeTheoryAnswer(
   userAnswer: string,
   context: string
 ): Promise<{ score: number; feedback: string; idealAnswer: string }> {
+  if (!groq) {
+    return {
+      score: 5,
+      feedback: 'AI grading is not available. Please check your API configuration.',
+      idealAnswer: 'Grading service temporarily unavailable.'
+    }
+  }
+
   const prompt = `Grade this theory answer and provide feedback.
 
 Question: ${question}
@@ -246,7 +274,6 @@ Be constructive and encouraging in feedback.`
       return JSON.parse(content)
     } catch (parseError) {
       console.error('Failed to parse Groq response as JSON:', content)
-      // Return a fallback response if JSON parsing fails
       return {
         score: 5,
         feedback: 'Unable to process your answer at this time. Please try again.',
@@ -255,7 +282,11 @@ Be constructive and encouraging in feedback.`
     }
   } catch (error) {
     console.error('Error grading theory answer:', error)
-    throw new Error('Failed to grade answer')
+    return {
+      score: 5,
+      feedback: 'Unable to grade answer at this time. Please check your API configuration.',
+      idealAnswer: 'Grading service temporarily unavailable.'
+    }
   }
 }
 
@@ -264,6 +295,10 @@ export async function askTutorQuestion(
   context: string,
   topic: string
 ): Promise<string> {
+  if (!groq) {
+    return 'AI tutor is not available. Please check your API key configuration.'
+  }
+
   const prompt = `You are an AI tutor helping a student learn "${topic}". 
 
 Current lesson context: ${context}
@@ -308,12 +343,12 @@ Provide a helpful, clear, and encouraging response that follows professional edu
       ],
       model: 'llama3-70b-8192',
       temperature: 0.7,
-      max_tokens: 2500 // Increased for more detailed responses
+      max_tokens: 2500
     })
 
-    return completion.choices[0]?.message?.content || 'Sorry, I could not process your question.'
+    return completion.choices[0]?.message?.content || 'Sorry, I could not process your question at this time.'
   } catch (error) {
     console.error('Error asking tutor question:', error)
-    throw new Error('Failed to get tutor response')
+    return 'Sorry, the AI tutor is temporarily unavailable. Please check your API configuration.'
   }
 }

@@ -29,9 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error)
+      }
       setSession(session)
       setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch((error) => {
+      console.error('Error in getSession:', error)
       setLoading(false)
     })
 
@@ -62,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('id')
         .eq('id', user.id)
-        .maybeSingle() // Use maybeSingle instead of single to avoid errors when no rows
+        .maybeSingle()
 
       // If profile doesn't exist, create it
       if (!existingProfile && !fetchError) {
@@ -88,58 +94,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-        emailRedirectTo: undefined, // Disable email confirmation
-      },
-    })
-
-    if (error) {
-      toast.error(error.message)
-      throw error
-    }
-
-    if (data.user) {
-      // Create profile immediately
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: data.user.id,
-            email: data.user.email!,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
             full_name: fullName,
           },
-        ])
+          emailRedirectTo: undefined, // Disable email confirmation
+        },
+      })
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError)
+      if (error) {
+        toast.error(error.message)
+        throw error
       }
 
-      toast.success('Account created successfully!')
+      if (data.user) {
+        // Create profile immediately
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: data.user.email!,
+              full_name: fullName,
+            },
+          ])
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError)
+        }
+
+        toast.success('Account created successfully!')
+      }
+    } catch (error) {
+      console.error('Sign up error:', error)
+      throw error
     }
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+    } catch (error) {
+      console.error('Sign in error:', error)
       throw error
     }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast.error(error.message)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+    } catch (error) {
+      console.error('Sign out error:', error)
       throw error
     }
   }
